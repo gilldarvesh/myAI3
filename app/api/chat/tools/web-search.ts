@@ -33,7 +33,7 @@ function extractFirstImageSrc(html: string): string | undefined {
 }
 
 type HandbagProductInfo = {
-  productName?: string;
+  name?: string;
   price?: string;
   imageUrl?: string;
 };
@@ -57,7 +57,7 @@ async function scrapeHandbagPage(url: string): Promise<HandbagProductInfo | null
     // Product name
     const ogTitle = extractMetaContent(html, 'og:title');
     const titleTag = extractTagText(html, 'title');
-    const productName = ogTitle || titleTag;
+    const name = ogTitle || titleTag;
 
     // Image URL
     const ogImage = extractMetaContent(html, 'og:image');
@@ -69,12 +69,12 @@ async function scrapeHandbagPage(url: string): Promise<HandbagProductInfo | null
     const priceMatch = html.match(PRICE_REGEX);
     if (priceMatch) price = priceMatch[0];
 
-    if (!productName && !price && !imageUrl) {
-      // Not a useful product page
+    if (!name && !price && !imageUrl) {
+      // Not a meaningful product page
       return null;
     }
 
-    return { productName, price, imageUrl };
+    return { name, price, imageUrl };
   } catch (err) {
     console.error(`Error scraping ${url}:`, err);
     return null;
@@ -83,7 +83,7 @@ async function scrapeHandbagPage(url: string): Promise<HandbagProductInfo | null
 
 export const webSearch = tool({
   description:
-    'Given a vague natural language description (style, budget, use-case), recommend 4–5 handbags with name, price, image, and link.',
+    'Given a natural language description (style, budget, use-case), recommend 4–5 handbags with name, price, image, and link.',
   inputSchema: z.object({
     query: z
       .string()
@@ -93,7 +93,7 @@ export const webSearch = tool({
   execute: async ({ query }) => {
     try {
       // Always treat this as a handbag-discovery query.
-      // We keep the user’s vague description, but reinforce it with handbag keywords.
+      // User can be very vague: “good handbag pls”, “something for office under 3000”, etc.
       const expandedQuery = `${query} women's handbag bag purse tote crossbody buy online`;
 
       const { results } = await exa.search(expandedQuery, {
@@ -101,8 +101,8 @@ export const webSearch = tool({
           text: true,
         },
         type: 'neural',
-        numResults: 15, // fetch more, then filter to 4–5 good ones
-        // Optionally bias to shopping sites:
+        numResults: 20, // fetch more, then filter to top 4–5
+        // Optional: bias to shopping sites you like:
         // includeDomains: ['amazon.in', 'myntra.com', 'ajio.com', 'nykaa.com', 'flipkart.com'],
       });
 
@@ -112,27 +112,27 @@ export const webSearch = tool({
           if (!info) return null;
 
           return {
-            title: result.title,
             url: result.url,
-            name: info.productName || result.title,
+            name: info.name || result.title,
             price: info.price || null,
             imageUrl: info.imageUrl || null,
           };
         })
       );
 
-      // Keep only items that have an image (for clickable cards)
+      // Filter out bad/null entries
       const valid = scraped.filter(
-        (p): p is NonNullable<typeof p> => !!p && !!p.imageUrl
+        (p): p is NonNullable<typeof p> => !!p
       );
 
-      // Prefer ones with price first
+      // Sort so that items *with* images and prices appear first
       const sorted = valid.sort((a, b) => {
-        const aHasPrice = a.price ? 1 : 0;
-        const bHasPrice = b.price ? 1 : 0;
-        return bHasPrice - aHasPrice;
+        const scoreA = (a.imageUrl ? 1 : 0) + (a.price ? 1 : 0);
+        const scoreB = (b.imageUrl ? 1 : 0) + (b.price ? 1 : 0);
+        return scoreB - scoreA;
       });
 
+      // Pick up to 5 best candidates
       const topPicks = sorted.slice(0, 5);
 
       return {
