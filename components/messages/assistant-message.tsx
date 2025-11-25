@@ -3,6 +3,49 @@ import { Response } from "@/components/ai-elements/response";
 import { ReasoningPart } from "./reasoning-part";
 import { ToolCall, ToolResult } from "./tool-call";
 
+type HandbagProduct = {
+  name: string;
+  price?: string;
+  imageUrl?: string;
+  url: string;
+  store?: string;
+};
+
+function extractHandbagProductsFromToolResult(part: ToolResultPart): HandbagProduct[] {
+  try {
+    const output = (part as any).output;
+
+    // 🔴 ASSUMPTION ZONE:
+    // Adjust this to match your actual tool output shape.
+    //
+    // Example 1: output = { products: [...] }
+    if (output && Array.isArray(output.products)) {
+      return output.products.map((p: any) => ({
+        name: p.name ?? "",
+        price: p.price,
+        imageUrl: p.imageUrl,
+        url: p.url ?? "",
+        store: p.store || p.domain,
+      })).filter(p => p.name && p.url);
+    }
+
+    // Example 2: output = [...]
+    if (Array.isArray(output)) {
+      return output.map((p: any) => ({
+        name: p.name ?? "",
+        price: p.price,
+        imageUrl: p.imageUrl,
+        url: p.url ?? "",
+        store: p.store || p.domain,
+      })).filter(p => p.name && p.url);
+    }
+
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 export function AssistantMessage({ message, status, isLastMessage, durations, onDurationChange }: { message: UIMessage; status?: string; isLastMessage?: boolean; durations?: Record<string, number>; onDurationChange?: (key: string, duration: number) => void }) {
     return (
         <div className="w-full">
