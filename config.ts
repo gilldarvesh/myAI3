@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { wrapLanguageModel, extractReasoningMiddleware } from "ai";
 
-export const MODEL = openai('gpt-4.1');
+export const MODEL = openai('gpt-5.1');
 
 function getDateAndTime(): string {
     const now = new Date();
