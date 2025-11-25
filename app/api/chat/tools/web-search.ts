@@ -4,9 +4,10 @@ import Exa from 'exa-js';
 
 const exa = new Exa(process.env.EXA_API_KEY as string);
 
+// Simple price regex (₹, Rs, INR, $, €, £)
 const PRICE_REGEX = /(₹|Rs\.?|INR|\$|€|£)\s?[\d.,]+/;
 
-// ----- tiny HTML helpers (regex-based, no cheerio) -----
+// ---- Tiny HTML helpers (regex-based, no extra deps) ----
 
 function extractMetaContent(html: string, property: string): string | undefined {
   const metaRegex = new RegExp(
@@ -53,23 +54,23 @@ async function scrapeHandbagPage(url: string): Promise<HandbagProductInfo | null
 
     const html = await res.text();
 
-    // ---- product name ----
+    // Product name
     const ogTitle = extractMetaContent(html, 'og:title');
     const titleTag = extractTagText(html, 'title');
     const productName = ogTitle || titleTag;
 
-    // ---- image url ----
+    // Image URL
     const ogImage = extractMetaContent(html, 'og:image');
     const fallbackImg = extractFirstImageSrc(html);
     const imageUrl = ogImage || fallbackImg;
 
-    // ---- price ----
+    // Price
     let price: string | undefined;
     const priceMatch = html.match(PRICE_REGEX);
     if (priceMatch) price = priceMatch[0];
 
     if (!productName && !price && !imageUrl) {
-      // not a useful product page
+      // Not a useful product page
       return null;
     }
 
@@ -82,41 +83,68 @@ async function scrapeHandbagPage(url: string): Promise<HandbagProductInfo | null
 
 export const webSearch = tool({
   description:
-    'Search the web for up-to-date information. When used for handbags, also tries to scrape product name, price and image.',
+    'Given a vague natural language description (style, budget, use-case), recommend 4–5 handbags with name, price, image, and link.',
   inputSchema: z.object({
-    query: z.string().min(1).describe('The search query'),
+    query: z
+      .string()
+      .min(1)
+      .describe('Natural language description of the handbag you want'),
   }),
   execute: async ({ query }) => {
     try {
-      const { results } = await exa.search(query, {
+      // Always treat this as a handbag-discovery query.
+      // We keep the user’s vague description, but reinforce it with handbag keywords.
+      const expandedQuery = `${query} women's handbag bag purse tote crossbody buy online`;
+
+      const { results } = await exa.search(expandedQuery, {
         contents: {
           text: true,
         },
-        numResults: 3,
-        // Optional: focus on shopping domains
+        type: 'neural',
+        numResults: 15, // fetch more, then filter to 4–5 good ones
+        // Optionally bias to shopping sites:
         // includeDomains: ['amazon.in', 'myntra.com', 'ajio.com', 'nykaa.com', 'flipkart.com'],
       });
 
-      const enriched = await Promise.all(
+      const scraped = await Promise.all(
         results.map(async (result) => {
-          const productInfo = await scrapeHandbagPage(result.url);
+          const info = await scrapeHandbagPage(result.url);
+          if (!info) return null;
 
           return {
             title: result.title,
             url: result.url,
-            content: result.text?.slice(0, 1000) || '',
-            publishedDate: result.publishedDate,
-            productName: productInfo?.productName,
-            price: productInfo?.price,
-            imageUrl: productInfo?.imageUrl,
+            name: info.productName || result.title,
+            price: info.price || null,
+            imageUrl: info.imageUrl || null,
           };
         })
       );
 
-      return enriched;
+      // Keep only items that have an image (for clickable cards)
+      const valid = scraped.filter(
+        (p): p is NonNullable<typeof p> => !!p && !!p.imageUrl
+      );
+
+      // Prefer ones with price first
+      const sorted = valid.sort((a, b) => {
+        const aHasPrice = a.price ? 1 : 0;
+        const bHasPrice = b.price ? 1 : 0;
+        return bHasPrice - aHasPrice;
+      });
+
+      const topPicks = sorted.slice(0, 5);
+
+      return {
+        query,
+        items: topPicks,
+      };
     } catch (error) {
       console.error('Error searching the web:', error);
-      return [];
+      return {
+        query,
+        items: [],
+      };
     }
   },
 });
