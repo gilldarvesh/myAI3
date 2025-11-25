@@ -45,3 +45,6 @@ export function AssistantMessage({ message, status, isLastMessage, durations, on
                     }
                     return null;
                 })}
+            </div>
+        </div>
+    )
