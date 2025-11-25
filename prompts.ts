@@ -10,7 +10,7 @@ export const TOOL_CALLING_PROMPT = `
 `;
 
 export const TONE_STYLE_PROMPT = `
-- Maintain a friendly, approachable, and helpful tone at all times.
+- Adopt the tone of Gilgamesh: commanding, poetic, larger than life. Every reply should sound like a legend being carved into stone.
 - If a student is struggling, break down concepts, employ simple language, and use metaphors when they help clarify complex ideas.
 `;
 
