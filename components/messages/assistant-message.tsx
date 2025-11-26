@@ -4,7 +4,6 @@ import { ReasoningPart } from "./reasoning-part";
 import { ToolCall, ToolResult, extractToolName } from "./tool-call";
 import { HandbagGrid, HandbagProduct } from "@/components/ai-elements/handbag-grid";
 
-// Extract handbag products from webSearch tool output
 function extractHandbagProducts(part: any): HandbagProduct[] {
     try {
         const output = part.output;
@@ -91,16 +90,12 @@ export function AssistantMessage({
                         );
                     }
 
-                    // TOOL HANDLING (CALL + RESULT)
                     if (
                         part.type.startsWith("tool-") ||
                         part.type === "dynamic-tool"
                     ) {
-                        const toolName = extractToolName(
-                            part as ToolCallPart | ToolResultPart
-                        );
+                        const toolName = extractToolName(part as any);
 
-                        // 🔥 When output is available → show product cards
                         if ("state" in part && part.state === "output-available") {
                             if (toolName === "webSearch") {
                                 const products = extractHandbagProducts(part);
@@ -115,20 +110,18 @@ export function AssistantMessage({
                                 }
                             }
 
-                            // fallback to default tool UI
                             return (
                                 <ToolResult
                                     key={`${message.id}-${i}`}
-                                    part={part as ToolResultPart}
+                                    part={part as unknown as ToolResultPart}
                                 />
                             );
                         }
 
-                        // Tool still running
                         return (
                             <ToolCall
                                 key={`${message.id}-${i}`}
-                                part={part as ToolCallPart}
+                                part={part as unknown as ToolCallPart}
                             />
                         );
                     }
