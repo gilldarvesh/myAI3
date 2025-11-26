@@ -37,13 +37,18 @@ const DEFAULT_TOOL_DISPLAY: ToolDisplay = {
     result_icon: <Wrench className="w-4 h-4" />,
 };
 
-// ✅ FIX: Export this function so assistant-message.tsx can import it
-export function extractToolName(part: ToolCallPart | ToolResultPart): string | undefined {
-    const partWithType = part as any;
+// 🔑 make this accept `any` so we can safely call it from assistant-message
+export function extractToolName(part: any): string | undefined {
+    const partWithType = part as { type?: string; toolName?: string };
+
     if (partWithType.type && partWithType.type.startsWith("tool-")) {
         return partWithType.type.slice(5);
     }
-    if (partWithType.toolName) return partWithType.toolName;
+
+    if (partWithType.toolName) {
+        return partWithType.toolName;
+    }
+
     return undefined;
 }
 
@@ -78,7 +83,9 @@ export function ToolCall({ part }: { part: ToolCallPart }) {
                 <Shimmer duration={1}>{toolDisplay.call_label}</Shimmer>
             </div>
             {toolDisplay.formatArgs && formattedArgs && (
-                <span className="text-muted-foreground/75 flex-1 min-w-0 truncate">{formattedArgs}</span>
+                <span className="text-muted-foreground/75 flex-1 min-w-0 truncate">
+                    {formattedArgs}
+                </span>
             )}
         </div>
     );
@@ -89,7 +96,9 @@ export function ToolResult({ part }: { part: ToolResultPart }) {
     const toolDisplay = toolName ? (TOOL_DISPLAY_MAP[toolName] || DEFAULT_TOOL_DISPLAY) : DEFAULT_TOOL_DISPLAY;
 
     const input = "input" in part ? (part as any).input : undefined;
-    const formattedArgs = input !== undefined ? formatToolArguments(toolName || "", input, toolDisplay) : "";
+    const formattedArgs = input !== undefined
+        ? formatToolArguments(toolName || "", input, toolDisplay)
+        : "";
 
     return (
         <div className="flex items-center gap-2">
@@ -98,7 +107,9 @@ export function ToolResult({ part }: { part: ToolResultPart }) {
                 <span>{toolDisplay.result_label}</span>
             </div>
             {toolDisplay.formatArgs && formattedArgs && (
-                <span className="text-muted-foreground/75 flex-1 min-w-0 truncate">{formattedArgs}</span>
+                <span className="text-muted-foreground/75 flex-1 min-w-0 truncate">
+                    {formattedArgs}
+                </span>
             )}
         </div>
     );
