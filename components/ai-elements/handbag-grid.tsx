@@ -1,3 +1,4 @@
+// components/ai-elements/handbag-grid.tsx
 import Image from "next/image";
 
 export type HandbagProduct = {
@@ -9,7 +10,7 @@ export type HandbagProduct = {
 };
 
 export function HandbagGrid({ products }: { products: HandbagProduct[] }) {
-  if (!products?.length) return null;
+  if (!products || products.length === 0) return null;
 
   return (
     <div className="w-full grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -31,18 +32,14 @@ export function HandbagGrid({ products }: { products: HandbagProduct[] }) {
           )}
 
           <div className="flex flex-col gap-1">
-            <div className="text-sm font-medium line-clamp-2">
-              {p.name}
-            </div>
+            <div className="text-sm font-medium line-clamp-2">{p.name}</div>
             {p.price && (
               <div className="text-sm font-semibold text-emerald-600">
                 {p.price}
               </div>
             )}
             {p.store && (
-              <div className="text-xs text-muted-foreground">
-                {p.store}
-              </div>
+              <div className="text-xs text-muted-foreground">{p.store}</div>
             )}
           </div>
         </div>
